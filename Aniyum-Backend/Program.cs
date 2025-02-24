@@ -58,18 +58,15 @@ builder.Services.AddRateLimiter(options =>
 ServiceCaller.RegisterServices(builder.Services);
 
 var app = builder.Build();
+
+app.UseHttpsRedirection();
 app.UseSwagger();
 app.UseSwaggerUI();
-
-
-
-
 app.UseRateLimiter();
 app.UseMiddleware<TokenAuthenticationHandler>();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
-app.UseHttpsRedirection();
 if (app.Environment.IsProduction())
 {
     app.UseMiddleware<LocationMiddleware>();
