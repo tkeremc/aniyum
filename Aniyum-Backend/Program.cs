@@ -2,8 +2,11 @@ using System.Text;
 using Aniyum_Backend.Authentication;
 using Aniyum_Backend.Services;
 using Aniyum.Utils;
+using DotNetEnv;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+
+Env.Load();
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -11,8 +14,9 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddControllers();
 builder.Services.AddHttpContextAccessor();
-
 builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
+
+builder.Configuration.AddEnvironmentVariables();
 
 builder.Services.AddAuthentication(options =>
 {
@@ -26,7 +30,7 @@ builder.Services.AddAuthentication(options =>
     {
         ValidateIssuerSigningKey = true,
         IssuerSigningKey =
-            new SymmetricSecurityKey(Encoding.UTF8.GetBytes(AppSettingConfig.Configuration["JwtSettings:SecretKey"]!)),
+            new SymmetricSecurityKey(Encoding.UTF8.GetBytes(Environment.GetEnvironmentVariable("JWT_SECRET")!)),
         ValidateIssuer = true,
         ValidIssuer = AppSettingConfig.Configuration["JwtSettings:Issuer"],
         ValidateAudience = true,
