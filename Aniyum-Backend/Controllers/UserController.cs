@@ -7,18 +7,17 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Aniyum_Backend.Controllers;
 [ApiController]
-[Route("[controller]")]
+[Route("user")]
 public class UserController(IUserService userService, IMapper mapper, ICurrentUserService currentUserService) : ControllerBase
 {
     [HttpGet("get-email")]
-    [Authorize]
     public async Task<ActionResult<string>> GetEmail(string username, CancellationToken cancellationToken)
     {
         var email = await userService.GetEmail(username, cancellationToken);
         return StatusCode(StatusCodes.Status200OK, email);
     }
 
-    [HttpGet("login")]
+    [HttpPost("login")]
     public async Task<ActionResult<TokensModel>> Login(string email, string password, CancellationToken cancellationToken)
     {
         var userTokens = await userService.Login(email, password, cancellationToken);
@@ -45,7 +44,7 @@ public class UserController(IUserService userService, IMapper mapper, ICurrentUs
         return StatusCode(StatusCodes.Status200OK, userViewModel);
     }
     
-    [HttpGet("refresh-token")]
+    [HttpPost("refresh-token")]
     public async Task<ActionResult<TokensModel>> RefreshToken(string refreshToken, CancellationToken cancellationToken)
     {
         var userTokens = await userService.RefreshToken(refreshToken, cancellationToken);

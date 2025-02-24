@@ -1,4 +1,5 @@
 ﻿using Aniyum.Utils;
+using DotNetEnv;
 using MongoDB.Driver;
 
 namespace Aniyum_Backend.DbContext;
@@ -13,7 +14,7 @@ public class MongoDbContext : IMongoDbContext
 
     public MongoDbContext()
     {
-        MongoClient = new MongoClient(AppSettingConfig.Configuration["MongoDBSettings:MongoDb"]);
+        MongoClient = new MongoClient(Environment.GetEnvironmentVariable("MONGO_CONNECTION_STRING"));
         _database = MongoClient.GetDatabase(AppSettingConfig.Configuration["MongoDBSettings:DatabaseName"]);
         _commands = new List<Func<Task>>();
     }

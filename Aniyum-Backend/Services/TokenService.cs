@@ -43,7 +43,7 @@ public class TokenService(IMongoDbContext mongoDbContext, ICurrentUserService cu
             issuer: issuer,
             audience: audience,
             claims: claims,
-            expires: DateTime.Now.AddMinutes(5),
+            expires: DateTime.Now.AddMinutes(30),
             signingCredentials: creds
         );
         return new JwtSecurityTokenHandler().WriteToken(token);
@@ -176,7 +176,7 @@ private RefreshTokenModel GenerateNewRefreshToken(string userId)
     {
         UserId = userId,
         RefreshToken = Convert.ToBase64String(randomNumber),
-        Expiration = DateTime.UtcNow.AddMinutes(10), // Refresh token süresi 7 gün
+        Expiration = DateTime.UtcNow.AddDays(7), // Refresh token süresi 7 gün
         CreatedAt = DateTime.UtcNow,
         IsUsed = false,
         IsRevoked = false,
