@@ -91,78 +91,9 @@ public class TokenService(IMongoDbContext mongoDbContext, ICurrentUserService cu
     
     public async Task<(string AccessToken, string RefreshToken)> GenerateRefreshToken(string userId,CancellationToken cancellationToken, 
         string? oldRefreshToken = null, bool isLogin = false)
-{
-    try
     {
-        var existingTokens = await _tokenCollection
-            .Find(x => x.UserId == userId)
-            .SortByDescending(x => x.CreatedAt) // Yeni oluşturulan en üstte olsun
-            .ToListAsync(cancellationToken: cancellationToken);
-
-        
-        
-        // Kullanıcıyı doğrula
-        var user = await _userCollection.Find(x => x.Id == userId).FirstOrDefaultAsync(cancellationToken: cancellationToken);
-        if (user is null)
-        {
-            throw new UnauthorizedAccessException("User does not exist.");
-        }
-        
-        if (!existingTokens.Any())
-        {
-            // Yeni bir access token oluştur
-            var _newAccessToken = await GenerateToken(user, cancellationToken);
-
-            // Yeni refresh token oluştur
-            var _newRefreshToken = GenerateNewRefreshToken(userId);
-
-            // MongoDB’ye yeni refresh token ekle
-            await _tokenCollection.InsertOneAsync(_newRefreshToken, cancellationToken: cancellationToken);
-            
-            return (_newAccessToken, _newRefreshToken.RefreshToken);
-        }
-
-        if (isLogin && existingTokens[0].Expiration > DateTime.UtcNow)
-            return
-            (
-                await GenerateToken(user, cancellationToken),
-                existingTokens[0].RefreshToken
-            )!;
-
-        // Eğer en eski refresh token süresi dolmuşsa veya iptal edilmişse, silebiliriz
-        if (existingTokens.Count > 0 && existingTokens[0].Expiration < DateTime.UtcNow)
-        {
-            if (!isLogin)
-            {
-                existingTokens[0].IsRevoked = true;
-                await _tokenCollection.ReplaceOneAsync(x => x.Id == existingTokens[0].Id, existingTokens[0],
-                    cancellationToken: cancellationToken);
-                throw new UnauthorizedAccessException("Refresh token expired, please log in again.");
-            }
-        }
-
-        
-
-        // Yeni bir access token oluştur
-        var newAccessToken = await GenerateToken(user, cancellationToken);
-
-        // Yeni refresh token oluştur
-        var newRefreshToken = GenerateNewRefreshToken(userId);
-
-        // MongoDB’ye yeni refresh token ekle
-        await _tokenCollection.InsertOneAsync(newRefreshToken, cancellationToken: cancellationToken);
-
-        // Eski refresh tokenleri temizle (yalnızca en yeni 3 tanesi kalsın)
-        await DeleteOldRefreshTokens(userId);
-
-        return (newAccessToken, newRefreshToken.RefreshToken);
+        throw new NotImplementedException();
     }
-    catch (Exception e)
-    {
-        Console.WriteLine(e);
-        throw;
-    }
-}
 
 private RefreshTokenModel GenerateNewRefreshToken(string userId)
 {
