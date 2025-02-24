@@ -7,11 +7,10 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Aniyum_Backend.Controllers;
 [ApiController]
-[Route("[controller]")]
+[Route("user")]
 public class UserController(IUserService userService, IMapper mapper, ICurrentUserService currentUserService) : ControllerBase
 {
     [HttpGet("get-email")]
-    [Authorize]
     public async Task<ActionResult<string>> GetEmail(string username, CancellationToken cancellationToken)
     {
         var email = await userService.GetEmail(username, cancellationToken);
