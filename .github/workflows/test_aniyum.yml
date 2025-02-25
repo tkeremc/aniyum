@@ -55,4 +55,4 @@ jobs:
           app-name: 'aniyum'
           slot-name: 'Production'
           package: .
-          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_C750240A7D904A919076F4A83A6CA1D2 }}
+          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_7C9386C504134C87A1F27F649A2C78B7 }}
