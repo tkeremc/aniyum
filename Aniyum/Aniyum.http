@@ -1,0 +1,6 @@
+@Aniyum_HostAddress = http://localhost:5254
+
+GET {{Aniyum_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
