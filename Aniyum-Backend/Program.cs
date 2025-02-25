@@ -45,12 +45,12 @@ builder.Services.AddAuthentication(options =>
 ServiceCaller.RegisterServices(builder.Services); 
 
 var app = builder.Build();
+app.UseSwagger();
+app.UseSwaggerUI();
 
 app.UseMiddleware<TokenAuthenticationHandler>();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
-app.UseSwagger();
-app.UseSwaggerUI();
 app.UseHttpsRedirection();
 app.Run();
