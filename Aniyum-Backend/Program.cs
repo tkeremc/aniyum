@@ -42,7 +42,7 @@ builder.Services.AddAuthentication(options =>
 
 
 
-ServiceCaller.RegisterServices(builder.Services);
+ServiceCaller.RegisterServices(builder.Services); 
 
 var app = builder.Build();
 
