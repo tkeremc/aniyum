@@ -1,6 +1,3 @@
-# Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
-# More GitHub Actions for Azure: https://github.com/Azure/actions
-
 name: Build and deploy ASP.Net Core app to Azure Web App - aniyum
 
 on:
@@ -20,8 +17,11 @@ jobs:
 
       - name: 🔄 appsettings.json İçindeki Placeholder'ları GitHub Secrets ile Değiştir
         run: |
-          sed -i 's|REPLACE_WITH_CONNECTION_STRING|${{ secrets.REPLACE_WITH_CONNECTION_STRING }}|g' Aniyum/appsettings.json
-          sed -i 's|REPLACE_WITH_API_KEY|${{ secrets.REPLACE_WITH_API_KEY }}|g' Aniyum/appsettings.json
+          CONNECTION_STRING="${{ secrets.REPLACE_WITH_CONNECTION_STRING }}"
+          API_KEY="${{ secrets.REPLACE_WITH_API_KEY }}"
+
+          sed -i "s|REPLACE_WITH_CONNECTION_STRING|$CONNECTION_STRING|g" Aniyum/appsettings.json
+          sed -i "s|REPLACE_WITH_API_KEY|$API_KEY|g" Aniyum/appsettings.json
 
       - name: Set up .NET Core
         uses: actions/setup-dotnet@v4
