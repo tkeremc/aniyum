@@ -1,4 +1,33 @@
-      - name: 🛠 `sed` Komutunu Test Et
+name: Test GitHub Secrets and JSON Replacement
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read # Required for actions/checkout
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🔍 Test GitHub Secrets Values
+        run: |
+          echo "Checking GitHub Secrets..."
+          echo "MongoDB Connection String: ${{ secrets.REPLACE_WITH_CONNECTION_STRING }}"
+          echo "API Key: ${{ secrets.REPLACE_WITH_API_KEY }}"
+
+      - name: 🛠 Export Secrets to Environment Variables
+        run: |
+          export CONNECTION_STRING="${{ secrets.REPLACE_WITH_CONNECTION_STRING }}"
+          export API_KEY="${{ secrets.REPLACE_WITH_API_KEY }}"
+
+          echo "Exported MongoDB Connection String: $CONNECTION_STRING"
+          echo "Exported API Key: $API_KEY"
+
+      - name: 📝 Create a Test JSON File
         run: |
           echo '{
             "ConnectionStrings": {
@@ -9,10 +38,37 @@
             }
           }' > test.json
 
-          CONNECTION_STRING="mongodb+srv://kullanici:şifre@cluster.mongodb.net/db?retryWrites=true&w=majority"
-          API_KEY="12345abcde"
+          echo "Original test.json:"
+          cat test.json
 
+      - name: 🔄 Test `sed` Replacement
+        run: |
           sed -i "s|REPLACE_WITH_CONNECTION_STRING|$CONNECTION_STRING|g" test.json
           sed -i "s|REPLACE_WITH_API_KEY|$API_KEY|g" test.json
 
+          echo "Updated test.json (after sed):"
           cat test.json
+
+      - name: 🛠 If `sed` Fails, Use `jq` as Backup
+        run: |
+          if grep -q "REPLACE_WITH_CONNECTION_STRING" test.json || grep -q "REPLACE_WITH_API_KEY" test.json; then
+            echo "⚠️ `sed` did not work correctly, using jq instead..."
+            
+            jq --arg conn "$CONNECTION_STRING" --arg key "$API_KEY" \
+            '.ConnectionStrings.DefaultConnection = $conn | .ApiSettings.ApiKey = $key' \
+            test.json > temp.json && mv temp.json test.json
+
+            echo "Updated test.json (after jq):"
+            cat test.json
+          else
+            echo "✅ `sed` successfully replaced values."
+          fi
+
+      - name: ✅ Final Verification
+        run: |
+          if grep -q "REPLACE_WITH_CONNECTION_STRING" test.json || grep -q "REPLACE_WITH_API_KEY" test.json; then
+            echo "❌ ERROR: Values were not replaced correctly!"
+            exit 1
+          else
+            echo "✅ Success: Values replaced correctly in test.json"
+          fi
