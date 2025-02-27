@@ -20,8 +20,8 @@ jobs:
 
       - name: 🔄 appsettings.json İçindeki Placeholder'ları GitHub Secrets ile Değiştir
         run: |
-          sed -i 's|REPLACE_WITH_CONNECTION_STRING|${{ secrets.REPLACE_WITH_CONNECTION_STRING }}|g' appsettings.json
-          sed -i 's|REPLACE_WITH_API_KEY|${{ secrets.REPLACE_WITH_API_KEY }}|g' appsettings.json
+          sed -i 's|REPLACE_WITH_CONNECTION_STRING|${{ secrets.REPLACE_WITH_CONNECTION_STRING }}|g' Aniyum/appsettings.json
+          sed -i 's|REPLACE_WITH_API_KEY|${{ secrets.REPLACE_WITH_API_KEY }}|g' Aniyum/appsettings.json
 
       - name: Set up .NET Core
         uses: actions/setup-dotnet@v4
