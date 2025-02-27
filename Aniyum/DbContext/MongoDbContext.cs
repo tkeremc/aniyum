@@ -13,7 +13,7 @@ public class MongoDbContext : IMongoDbContext
 
     public MongoDbContext()
     {
-        MongoClient = new MongoClient("");
+        MongoClient = new MongoClient(AppSettingConfig.Configuration["MongoDBSettings:MongoDb"]);
         _database = MongoClient.GetDatabase(AppSettingConfig.Configuration["MongoDBSettings:DatabaseName"]);
         _commands = new List<Func<Task>>();
     }

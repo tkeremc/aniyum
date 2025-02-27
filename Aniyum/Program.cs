@@ -33,7 +33,7 @@ void ConfigureServices(WebApplicationBuilder builder)
 
 void ConfigureAuthentication(WebApplicationBuilder builder)
 {
-    var jwtSecret = "";
+    var jwtSecret = AppSettingConfig.Configuration["JwtSettings:SecretKey"];
     builder.Services.AddAuthentication(options =>
     {
         options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -70,7 +70,7 @@ void ConfigureApp(WebApplication app)
     app.MapControllers();
 
     // Log environment variables for debugging
-    var jwt = app.Configuration["JWT_SECRET"];
-    var mongo = app.Configuration["MONGO_CONNECTION_STRING"];
+    var jwt = AppSettingConfig.Configuration["JwtSettings:SecretKey"];
+    var mongo = AppSettingConfig.Configuration["MongoDBSettings:MongoDb"];
     Console.WriteLine($"JWT_SECRET: {jwt}, MONGO_CONNECTION_STRING: {mongo}");
 }
