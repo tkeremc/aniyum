@@ -68,7 +68,6 @@ public class UserController(IUserService userService, IMapper mapper, ICurrentUs
         return Ok(list);
     }
     
-    [Authorize]
     [HttpGet("appsetting-test")]
     public async Task<string> AppSettingTest()
     {
