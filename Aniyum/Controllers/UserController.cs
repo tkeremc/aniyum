@@ -1,6 +1,7 @@
 ﻿using Aniyum_Backend.Models;
 using Aniyum.Interfaces;
 using Aniyum.Models;
+using Aniyum.Utils;
 using Aniyum.ViewModels;
 using AutoMapper;
 using Microsoft.AspNetCore.Authorization;
@@ -65,5 +66,15 @@ public class UserController(IUserService userService, IMapper mapper, ICurrentUs
             ipAddress = currentUserService.GetIpAddress()
         };
         return Ok(list);
+    }
+    
+    [Authorize]
+    [HttpGet("appsetting-test")]
+    public async Task<string> AppSettingTest()
+    {
+        
+        var jwt = AppSettingConfig.Configuration["JwtSettings:SecretKey"];
+        var mongo = AppSettingConfig.Configuration["MongoDBSettings:MongoDb"];
+        return ($"JWT_SECRET: {jwt}, MONGO_CONNECTION_STRING: {mongo}");
     }
 }
