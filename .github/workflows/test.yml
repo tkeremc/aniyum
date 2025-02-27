@@ -1,0 +1,18 @@
+      - name: 🛠 `sed` Komutunu Test Et
+        run: |
+          echo '{
+            "ConnectionStrings": {
+              "DefaultConnection": "REPLACE_WITH_CONNECTION_STRING"
+            },
+            "ApiSettings": {
+              "ApiKey": "REPLACE_WITH_API_KEY"
+            }
+          }' > test.json
+
+          CONNECTION_STRING="mongodb+srv://kullanici:şifre@cluster.mongodb.net/db?retryWrites=true&w=majority"
+          API_KEY="12345abcde"
+
+          sed -i "s|REPLACE_WITH_CONNECTION_STRING|$CONNECTION_STRING|g" test.json
+          sed -i "s|REPLACE_WITH_API_KEY|$API_KEY|g" test.json
+
+          cat test.json
