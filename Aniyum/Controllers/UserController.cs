@@ -52,28 +52,4 @@ public class UserController(IUserService userService, IMapper mapper, ICurrentUs
         var userTokens = await userService.RefreshToken(refreshToken, cancellationToken);
         return StatusCode(StatusCodes.Status200OK, userTokens);
     }
-
-    [Authorize]
-    [HttpGet("test")]
-    public async Task<IActionResult> Test()
-    {
-        var list = new
-        {
-            id = currentUserService.GetUserId(),
-            username = currentUserService.GetUsername(),
-            email = currentUserService.GetEmail(),
-            roles = currentUserService.GetRoles(),
-            ipAddress = currentUserService.GetIpAddress()
-        };
-        return Ok(list);
-    }
-    
-    [HttpGet("appsetting-test")]
-    public async Task<string> AppSettingTest()
-    {
-        
-        var jwt = AppSettingConfig.Configuration["JwtSettings:SecretKey"];
-        var mongo = AppSettingConfig.Configuration["MongoDBSettings:MongoDb"];
-        return ($"JWT_SECRET: {jwt}, MONGO_CONNECTION_STRING: {mongo}");
-    }
 }
