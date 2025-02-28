@@ -17,8 +17,8 @@ jobs:
 
       - name: 🔄 appsettings.json İçindeki Placeholder'ları GitHub Secrets ile Değiştir
         run: |
-          CONNECTION_STRING="${{ secrets.REPLACE_WITH_CONNECTION_STRING }}"
-          API_KEY="${{ secrets.REPLACE_WITH_API_KEY }}"
+          CONNECTION_STRING=$(printf '%q' "${{ secrets.REPLACE_WITH_CONNECTION_STRING }}")
+          API_KEY=$(printf '%q' "${{ secrets.REPLACE_WITH_API_KEY }}")
 
           sed -i "s|REPLACE_WITH_CONNECTION_STRING|$CONNECTION_STRING|g" Aniyum/appsettings.json
           sed -i "s|REPLACE_WITH_API_KEY|$API_KEY|g" Aniyum/appsettings.json
