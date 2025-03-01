@@ -18,6 +18,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: 🔄 appsettings.json İçindeki Placeholder'ları GitHub Secrets ile Değiştir
+        run: |
+          CONNECTION_STRING=$(printf '%q' "${{ secrets.MONGO_DB }}")
+          SECRET_KEY=$(printf '%q' "${{ secrets.SECRET_KEY }}")
+
+          sed -i "s|Mongo_Placeholder|$CONNECTION_STRING|g" Aniyum/appsettings.json
+          sed -i "s|Secret_Placeholder|$SECRET_KEY|g" Aniyum/appsettings.json
+
       - name: Set up .NET Core
         uses: actions/setup-dotnet@v4
         with:
