@@ -1,10 +1,5 @@
-using System.Text;
 using Aniyum.Authentication;
 using Aniyum.Services;
-using Aniyum.Utils;
-using DotNetEnv;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -25,35 +20,8 @@ void ConfigureServices(WebApplicationBuilder builder)
     builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 
     builder.Configuration.AddEnvironmentVariables();
-
-    ConfigureAuthentication(builder);
     
     ServiceCaller.RegisterServices(builder.Services);
-}
-
-void ConfigureAuthentication(WebApplicationBuilder builder)
-{
-    var jwtSecret = "";
-    builder.Services.AddAuthentication(options =>
-    {
-        options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-        options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-    }).AddJwtBearer(options =>
-    {
-        options.RequireHttpsMetadata = false;
-        options.SaveToken = true;
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret)),
-            ValidateIssuer = true,
-            ValidIssuer = AppSettingConfig.Configuration["JwtSettings:Issuer"],
-            ValidateAudience = true,
-            ValidAudience = AppSettingConfig.Configuration["JwtSettings:Audience"],
-            ValidateLifetime = true,
-            ClockSkew = TimeSpan.Zero
-        };
-    });
 }
 
 void ConfigureApp(WebApplication app)
@@ -68,9 +36,4 @@ void ConfigureApp(WebApplication app)
     app.UseAuthorization();
 
     app.MapControllers();
-
-    // Log environment variables for debugging
-    var jwt = app.Configuration["JWT_SECRET"];
-    var mongo = app.Configuration["MONGO_CONNECTION_STRING"];
-    Console.WriteLine($"JWT_SECRET: {jwt}, MONGO_CONNECTION_STRING: {mongo}");
 }

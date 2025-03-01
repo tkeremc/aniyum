@@ -1,5 +1,9 @@
-﻿using Aniyum.DbContext;
+﻿using System.Text;
+using Aniyum.DbContext;
 using Aniyum.Interfaces;
+using Aniyum.Utils;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 
 namespace Aniyum.Services;
@@ -11,7 +15,7 @@ public sealed class ServiceCaller
         SingletonServices(services);
         ScopedServices(services);
         // HostServices(services);
-        SwaggerSettings(services);
+        StartSettings(services);
     }
 
     private static void ScopedServices(IServiceCollection services)
@@ -31,7 +35,7 @@ public sealed class ServiceCaller
     //     throw new NotImplementedException();
     // }
 
-    private static void SwaggerSettings(IServiceCollection services)
+    private static void StartSettings(IServiceCollection services)
     {
         services.AddSwaggerGen(options =>
         {
@@ -59,6 +63,27 @@ public sealed class ServiceCaller
                     Array.Empty<string>()
                 }
             });
+        });
+        
+        services.AddAuthentication(options =>
+        {
+            options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+            options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+        }).AddJwtBearer(options =>
+        {
+            options.RequireHttpsMetadata = false;
+            options.SaveToken = true;
+            options.TokenValidationParameters = new TokenValidationParameters
+            {
+                ValidateIssuerSigningKey = true,
+                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(AppSettingConfig.Configuration["JwtSettings:SecretKey"]!)),
+                ValidateIssuer = true,
+                ValidIssuer = AppSettingConfig.Configuration["JwtSettings:Issuer"],
+                ValidateAudience = true,
+                ValidAudience = AppSettingConfig.Configuration["JwtSettings:Audience"],
+                ValidateLifetime = true,
+                ClockSkew = TimeSpan.Zero
+            };
         });
     }
 }
