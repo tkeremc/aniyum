@@ -1,6 +1,6 @@
 ﻿namespace Aniyum.ViewModels;
 
-public class UserUpdateViewModel : BaseViewModel
+public class UserUpdateViewModel
 {
     public string? FullName { get; set; }
     public string? Username { get; set; }

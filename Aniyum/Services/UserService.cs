@@ -1,5 +1,4 @@
-﻿using Aniyum_Backend.Models;
-using Aniyum.DbContext;
+﻿using Aniyum.DbContext;
 using Aniyum.Helpers;
 using Aniyum.Interfaces;
 using Aniyum.Models;
@@ -52,11 +51,14 @@ public class UserService(IMongoDbContext mongoDbContext, ITokenService tokenServ
             var user = await _userCollection.Find(x => x.Email == email).FirstOrDefaultAsync(cancellationToken);
             if (user == null) throw new Exception("user not found");
             if (!BCrypt.Net.BCrypt.Verify(password, user.HashedPassword)) throw new Exception("password is incorrect");
-            var tokens = await tokenService.GenerateRefreshToken(user.Id, cancellationToken, isLogin: true);
+            
+            var accessToken = await tokenService.GenerateAccessToken(user, cancellationToken);
+            var refreshToken = await tokenService.GenerateRefreshToken(user.Id, cancellationToken);
+            
             var tokensModel = new TokensModel
             {
-                RefreshToken = tokens.RefreshToken,
-                AccessToken = tokens.AccessToken
+                RefreshToken = refreshToken.RefreshToken,
+                AccessToken = accessToken
             };
             return tokensModel;
         }
@@ -124,10 +126,7 @@ public class UserService(IMongoDbContext mongoDbContext, ITokenService tokenServ
     {
         try
         {
-            var filter = Builders<RefreshTokenModel>.Filter.Eq(x => x.RefreshToken, refreshToken);
-            var user = await _tokenCollection.Find(filter).Project(x=> x.UserId).FirstOrDefaultAsync(cancellationToken);
-            if (user == null) throw new Exception("user not found");
-            var tokens = await tokenService.GenerateRefreshToken(user, cancellationToken, refreshToken);
+            var tokens = await tokenService.RenewRefreshToken(refreshToken, cancellationToken);
             return new TokensModel { RefreshToken = tokens.RefreshToken, AccessToken = tokens.AccessToken };
         }
         catch (Exception e)

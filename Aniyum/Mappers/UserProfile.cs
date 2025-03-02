@@ -1,5 +1,4 @@
-﻿using Aniyum_Backend.Models;
-using Aniyum.Models;
+﻿using Aniyum.Models;
 using Aniyum.ViewModels;
 using AutoMapper;
 

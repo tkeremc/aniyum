@@ -2,7 +2,6 @@
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
-using Aniyum_Backend.Models;
 using Aniyum.DbContext;
 using Aniyum.Interfaces;
 using Aniyum.Models;
@@ -17,7 +16,7 @@ public class TokenService(IMongoDbContext mongoDbContext, ICurrentUserService cu
     private readonly IMongoCollection<RefreshTokenModel> _tokenCollection = mongoDbContext.GetCollection<RefreshTokenModel>(AppSettingConfig.Configuration["MongoDBSettings:TokenCollection"]!);
     private readonly IMongoCollection<UserModel> _userCollection = mongoDbContext.GetCollection<UserModel>(AppSettingConfig.Configuration["MongoDBSettings:UserCollection"]!);
     
-    public async Task<string> GenerateToken(UserModel user, CancellationToken cancellationToken)
+    public async Task<string> GenerateAccessToken(UserModel user, CancellationToken cancellationToken)
     {
         var secretKey = AppSettingConfig.Configuration["JwtSettings:SecretKey"];
         var audience = AppSettingConfig.Configuration["JwtSettings:Audience"];
@@ -49,114 +48,90 @@ public class TokenService(IMongoDbContext mongoDbContext, ICurrentUserService cu
         );
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
-
-    // public async Task<string?> GenerateRefreshToken(string userId)
-    // {
-    //     try
-    //     {
-    //         var exitedRefreshToken = await _tokenCollection.Find(x => x.UserId == userId).FirstOrDefaultAsync();
-    //         if (exitedRefreshToken == null)
-    //         {
-    //             var randomNumber = new byte[32];
-    //             using (var rng = RandomNumberGenerator.Create())
-    //             {
-    //                 rng.GetBytes(randomNumber);
-    //             }
-    //
-    //             var refreshToken = new RefreshTokenModel
-    //             {
-    //                 UserId = userId,
-    //                 RefreshToken = Convert.ToBase64String(randomNumber),
-    //                 Expiration = DateTime.Now.AddMinutes(10),
-    //                 CreatedAt = DateTime.Now
-    //             };
-    //             await _tokenCollection.InsertOneAsync(refreshToken);
-    //             return refreshToken.RefreshToken.ToString();
-    //         }
-    //
-    //         if (exitedRefreshToken.Expiration < DateTime.Now)
-    //         {
-    //             await _tokenCollection.DeleteOneAsync(x => x.Id == exitedRefreshToken.Id);
-    //             throw new UnauthorizedAccessException("Refresh token expired");
-    //         }
-    //         var user = await _userCollection.Find(x => x.Id == userId).FirstOrDefaultAsync();
-    //         if (user is null) throw new UnauthorizedAccessException("User does not exist.");
-    //         return await GenerateToken(user);
-    //     }
-    //     catch (Exception e)
-    //     {
-    //         Console.WriteLine(e);
-    //         throw;
-    //     }
-    // }
     
-    public async Task<(string AccessToken, string RefreshToken)> GenerateRefreshToken(string userId,CancellationToken cancellationToken, 
-        string? oldRefreshToken = null, bool isLogin = false)
+    public async Task<RefreshTokenModel> GenerateRefreshToken(string userId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var randomNumber = new byte[32];
+            var rng = RandomNumberGenerator.Create();
+            rng.GetBytes(randomNumber);
+            var refreshToken = new RefreshTokenModel
+            {
+                UserId = userId,
+                RefreshToken = Convert.ToBase64String(randomNumber),
+                Expiration = DateTime.UtcNow.AddSeconds(30),
+                CreatedAt = DateTime.UtcNow,
+                IsUsed = false,
+                IsRevoked = false,
+                Ip = currentUserService.GetIpAddress()
+            };
+            await RevokeAllUserRefreshTokens(userId, cancellationToken);
+            await _tokenCollection.InsertOneAsync(refreshToken, cancellationToken: cancellationToken);
+            await DeleteOldRefreshTokens(userId, cancellationToken);
+            return refreshToken;
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+            throw;
+        }
+    }
+
+    public async Task<TokensModel> RenewRefreshToken(string refreshToken, CancellationToken cancellationToken)
 {
     try
     {
-        var existingTokens = await _tokenCollection
-            .Find(x => x.UserId == userId)
-            .SortByDescending(x => x.CreatedAt) // Yeni oluşturulan en üstte olsun
-            .ToListAsync(cancellationToken: cancellationToken);
+        // Verilen refresh token ile eşleşen kullanıcıyı bul
+        var existingToken = await _tokenCollection.Find(x => x.RefreshToken == refreshToken)
+            .FirstOrDefaultAsync(cancellationToken);
 
-        
-        
-        // Kullanıcıyı doğrula
-        var user = await _userCollection.Find(x => x.Id == userId).FirstOrDefaultAsync(cancellationToken: cancellationToken);
-        if (user is null)
+        if (existingToken == null)
+            throw new Exception("Refresh token bulunamadı");
+
+        // Token süresi dolmuş mu?
+        if (existingToken.Expiration < DateTime.UtcNow)
         {
-            throw new UnauthorizedAccessException("User does not exist.");
-        }
-        
-        if (!existingTokens.Any())
-        {
-            // Yeni bir access token oluştur
-            var _newAccessToken = await GenerateToken(user, cancellationToken);
-
-            // Yeni refresh token oluştur
-            var _newRefreshToken = GenerateNewRefreshToken(userId);
-
-            // MongoDB’ye yeni refresh token ekle
-            await _tokenCollection.InsertOneAsync(_newRefreshToken, cancellationToken: cancellationToken);
-            
-            return (_newAccessToken, _newRefreshToken.RefreshToken);
+            await _tokenCollection.UpdateOneAsync(
+                x => x.Id == existingToken.Id,
+                Builders<RefreshTokenModel>.Update.Set(x => x.IsRevoked, true),
+                cancellationToken: cancellationToken
+            );
+            throw new Exception("Refresh token süresi dolmuş");
         }
 
-        if (isLogin && existingTokens[0].Expiration > DateTime.UtcNow)
-            return
-            (
-                await GenerateToken(user, cancellationToken),
-                existingTokens[0].RefreshToken
-            )!;
+        // Token zaten kullanılmış mı veya iptal edilmiş mi?
+        if (existingToken.IsUsed || existingToken.IsRevoked)
+            throw new Exception("Bu refresh token zaten kullanılmış veya iptal edilmiş");
 
-        // Eğer en eski refresh token süresi dolmuşsa veya iptal edilmişse, silebiliriz
-        if (existingTokens.Count > 0 && existingTokens[0].Expiration < DateTime.UtcNow)
+        // Kullanıcıyı veritabanında ara
+        var user = await _userCollection.Find(x => x.Id == existingToken.UserId)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (user == null)
+            throw new Exception("Kullanıcı bulunamadı");
+
+        // Yeni Access Token ve Refresh Token oluştur
+        var newAccessToken = await GenerateAccessToken(user, cancellationToken);
+        var newRefreshToken = await GenerateRefreshToken(user.Id, cancellationToken);
+
+
+        // Kullanılan refresh tokeni güncelle (Artık kullanıldı ve tekrar kullanılamaz)
+        await _tokenCollection.UpdateOneAsync(
+            x => x.Id == existingToken.Id,
+            Builders<RefreshTokenModel>.Update
+                .Set(x => x.IsUsed, true),
+            cancellationToken: cancellationToken
+        );
+
+        // Eski refresh tokenleri temizle (Son 3 token hariç)
+        await DeleteOldRefreshTokens(user.Id, cancellationToken);
+
+        return new TokensModel
         {
-            if (!isLogin)
-            {
-                existingTokens[0].IsRevoked = true;
-                await _tokenCollection.ReplaceOneAsync(x => x.Id == existingTokens[0].Id, existingTokens[0],
-                    cancellationToken: cancellationToken);
-                throw new UnauthorizedAccessException("Refresh token expired, please log in again.");
-            }
-        }
-
-        
-
-        // Yeni bir access token oluştur
-        var newAccessToken = await GenerateToken(user, cancellationToken);
-
-        // Yeni refresh token oluştur
-        var newRefreshToken = GenerateNewRefreshToken(userId);
-
-        // MongoDB’ye yeni refresh token ekle
-        await _tokenCollection.InsertOneAsync(newRefreshToken, cancellationToken: cancellationToken);
-
-        // Eski refresh tokenleri temizle (yalnızca en yeni 3 tanesi kalsın)
-        await DeleteOldRefreshTokens(userId);
-
-        return (newAccessToken, newRefreshToken.RefreshToken);
+            AccessToken = newAccessToken,
+            RefreshToken = newRefreshToken.RefreshToken
+        };
     }
     catch (Exception e)
     {
@@ -165,38 +140,39 @@ public class TokenService(IMongoDbContext mongoDbContext, ICurrentUserService cu
     }
 }
 
-private RefreshTokenModel GenerateNewRefreshToken(string userId)
-{
-    var randomNumber = new byte[32];
-    using (var rng = RandomNumberGenerator.Create())
-    {
-        rng.GetBytes(randomNumber);
-    }
-
-    return new RefreshTokenModel
-    {
-        UserId = userId,
-        RefreshToken = Convert.ToBase64String(randomNumber),
-        Expiration = DateTime.UtcNow.AddDays(7), // Refresh token süresi 7 gün
-        CreatedAt = DateTime.UtcNow,
-        IsUsed = false,
-        IsRevoked = false,
-        Ip = currentUserService.GetIpAddress()
-    };
-}
-
-private async Task DeleteOldRefreshTokens(string userId)
-{
-    var tokens = await _tokenCollection
-        .Find(x => x.UserId == userId)
-        .SortByDescending(x => x.CreatedAt) // En yeni refresh token'lar başta olsun
-        .ToListAsync();
     
-    if (tokens.Count > 3) // Eğer 3'ten fazla varsa, en eski olanları silelim
+    private async Task DeleteOldRefreshTokens(string userId, CancellationToken cancellationToken)
     {
-        var tokensToDelete = tokens.Skip(3).Select(t => t.Id).ToList(); // 3. indexten sonrası silinecek
-        await _tokenCollection.DeleteManyAsync(x => tokensToDelete.Contains(x.Id));
+        var tokens = await _tokenCollection
+            .Find(x => x.UserId == userId)
+            .SortByDescending(x => x.CreatedAt) // En yeni refresh token'lar başta olsun
+            .ToListAsync();
+        
+        if (tokens.Count > 3) // Eğer 3'ten fazla varsa, en eski olanları silelim
+        {
+            var tokensToDelete = tokens.Skip(3).Select(t => t.Id).ToList(); // 3. indexten sonrası silinecek
+            await _tokenCollection.DeleteManyAsync(x => tokensToDelete.Contains(x.Id), cancellationToken: cancellationToken);
+        }
     }
-}
+    
+    private async Task RevokeAllUserRefreshTokens(string userId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var update = Builders<RefreshTokenModel>.Update
+                .Set(x => x.IsRevoked, true);
+
+            var result = await _tokenCollection.UpdateManyAsync(
+                x => x.UserId == userId,
+                update,
+                cancellationToken: cancellationToken
+            );
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine($"Refresh tokenleri iptal etme hatası: {e.Message}");
+            throw;
+        }
+    }
 
 }

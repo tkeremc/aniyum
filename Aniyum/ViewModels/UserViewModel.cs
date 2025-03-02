@@ -1,6 +1,6 @@
 ﻿namespace Aniyum.ViewModels;
 
-public class UserViewModel : BaseViewModel
+public class UserViewModel
 {
     public string? FullName { get; set; }
     public string? Username { get; set; }
