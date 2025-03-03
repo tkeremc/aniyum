@@ -14,8 +14,8 @@ public interface IUserService
     
     Task<string> GetEmail(string username, CancellationToken cancellationToken);
     Task<UserModel> Get(CancellationToken cancellationToken);
-    Task<TokensModel> Login(string email, string password, CancellationToken cancellationToken);
+    Task<TokensModel> Login(string email, string password, string deviceId, CancellationToken cancellationToken);
     Task<UserModel> Register([FromBody] UserModel newUser, CancellationToken cancellationToken);
     Task<UserModel> Update([FromBody] UserModel updatedUserModel, CancellationToken cancellationToken);
-    Task<TokensModel> RefreshToken(string refreshToken, CancellationToken cancellationToken);
+    Task<TokensModel> RefreshToken(string refreshToken, string deviceId, CancellationToken cancellationToken);
 }

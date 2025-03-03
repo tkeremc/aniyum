@@ -20,7 +20,7 @@ public class UserController(IUserService userService, IMapper mapper, ICurrentUs
     [HttpPost("login")]
     public async Task<ActionResult<TokensModel>> Login(string email, string password, CancellationToken cancellationToken)
     {
-        var userTokens = await userService.Login(email, password, cancellationToken);
+        var userTokens = await userService.Login(email, password, currentUserService.GetDeviceId(), cancellationToken);
         return StatusCode(StatusCodes.Status200OK, userTokens);
     }
 
@@ -47,7 +47,7 @@ public class UserController(IUserService userService, IMapper mapper, ICurrentUs
     [HttpPost("refresh-token")]
     public async Task<ActionResult<TokensModel>> RefreshToken(string refreshToken, CancellationToken cancellationToken)
     {
-        var userTokens = await userService.RefreshToken(refreshToken, cancellationToken);
+        var userTokens = await userService.RefreshToken(refreshToken, currentUserService.GetDeviceId(), cancellationToken);
         return StatusCode(StatusCodes.Status200OK, userTokens);
     }
 
@@ -61,7 +61,8 @@ public class UserController(IUserService userService, IMapper mapper, ICurrentUs
             username = currentUserService.GetUsername(),
             email = currentUserService.GetEmail(),
             roles = currentUserService.GetRoles(),
-            ipAddress = currentUserService.GetIpAddress()
+            ipAddress = currentUserService.GetIpAddress(),
+            deviceId = currentUserService.GetDeviceId()
         };
         return Ok(list);
     }

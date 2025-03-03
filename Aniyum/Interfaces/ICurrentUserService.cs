@@ -7,4 +7,5 @@ public interface ICurrentUserService
     string GetEmail();
     List<string> GetRoles();
     public string GetIpAddress();
+    public string GetDeviceId();
 }

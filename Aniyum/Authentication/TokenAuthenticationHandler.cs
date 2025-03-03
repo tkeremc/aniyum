@@ -6,6 +6,9 @@ public class TokenAuthenticationHandler(RequestDelegate next)
 {
     public async Task Invoke(HttpContext context)
     {
+        string deviceId = context.Request.Headers["device-id"];
+        context.Request.Headers["X-Device-Id"] = deviceId;
+        
         var token = context.Request.Headers["Authorization"].FirstOrDefault()?.Split(" ").Last();
 
         if (token != null)

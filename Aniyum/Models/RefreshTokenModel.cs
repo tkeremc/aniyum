@@ -15,4 +15,5 @@ public class RefreshTokenModel
     public bool IsRevoked { get; set; }
     public bool IsUsed { get; set; }
     public string? Ip { get; set; }
+    public string? DeviceId { get; set; }
 }
