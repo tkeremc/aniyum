@@ -33,4 +33,10 @@ public class CurrentUserService(IHttpContextAccessor httpContextAccessor) : ICur
         var ipAddress = httpContextAccessor.HttpContext?.Request.Headers["X-IP-Address"];
         return ipAddress;
     }
+
+    public string GetDeviceId()
+    {
+        var deviceId = httpContextAccessor.HttpContext?.Request.Headers["X-Device-Id"];
+        return deviceId;
+    }
 }

@@ -49,26 +49,32 @@ public class TokenService(IMongoDbContext mongoDbContext, ICurrentUserService cu
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
     
-    public async Task<RefreshTokenModel> GenerateRefreshToken(string userId, CancellationToken cancellationToken)
+    public async Task<RefreshTokenModel> GenerateRefreshToken(string userId, string deviceId, CancellationToken cancellationToken)
     {
         try
         {
             var randomNumber = new byte[32];
-            var rng = RandomNumberGenerator.Create();
+            using var rng = RandomNumberGenerator.Create();
             rng.GetBytes(randomNumber);
+        
             var refreshToken = new RefreshTokenModel
             {
                 UserId = userId,
                 RefreshToken = Convert.ToBase64String(randomNumber),
-                Expiration = DateTime.UtcNow.AddSeconds(30),
+                Expiration = DateTime.UtcNow.AddDays(7), // 7 gün geçerli olacak
                 CreatedAt = DateTime.UtcNow,
                 IsUsed = false,
                 IsRevoked = false,
-                Ip = currentUserService.GetIpAddress()
+                Ip = currentUserService.GetIpAddress(),
+                DeviceId = deviceId // ✅ Cihaz ID ekleniyor
             };
-            await RevokeAllUserRefreshTokens(userId, cancellationToken);
+
+            await RevokeAllUserRefreshTokens(userId, deviceId , cancellationToken);
             await _tokenCollection.InsertOneAsync(refreshToken, cancellationToken: cancellationToken);
-            await DeleteOldRefreshTokens(userId, cancellationToken);
+        
+            // Aynı cihaz için eski tokenleri temizle (Son 3 tokeni sakla)
+            await DeleteOldDeviceTokens(userId, deviceId, cancellationToken);
+
             return refreshToken;
         }
         catch (Exception e)
@@ -78,84 +84,59 @@ public class TokenService(IMongoDbContext mongoDbContext, ICurrentUserService cu
         }
     }
 
-    public async Task<TokensModel> RenewRefreshToken(string refreshToken, CancellationToken cancellationToken)
-{
-    try
+
+    public async Task<TokensModel> RenewRefreshToken(string refreshToken, string deviceId, CancellationToken cancellationToken)
     {
-        // Verilen refresh token ile eşleşen kullanıcıyı bul
-        var existingToken = await _tokenCollection.Find(x => x.RefreshToken == refreshToken)
-            .FirstOrDefaultAsync(cancellationToken);
-
-        if (existingToken == null)
-            throw new Exception("Refresh token bulunamadı");
-
-        // Token süresi dolmuş mu?
-        if (existingToken.Expiration < DateTime.UtcNow)
+        try
         {
+            var existingToken = await _tokenCollection
+                .Find(x => x.RefreshToken == refreshToken && x.DeviceId == deviceId)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (existingToken == null)
+                throw new Exception("Refresh token bulunamadı veya cihaz eşleşmiyor.");
+
+            if (existingToken.Expiration < DateTime.UtcNow)
+            {
+                await _tokenCollection.UpdateOneAsync(
+                    x => x.Id == existingToken.Id,
+                    Builders<RefreshTokenModel>.Update.Set(x => x.IsRevoked, true),
+                    cancellationToken: cancellationToken
+                );
+                throw new Exception("Refresh token süresi dolmuş");
+            }
+
+            if (existingToken.IsUsed || existingToken.IsRevoked)
+                throw new Exception("Bu refresh token zaten kullanılmış veya iptal edilmiş");
+
+            var user = await _userCollection.Find(x => x.Id == existingToken.UserId)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (user == null)
+                throw new Exception("Kullanıcı bulunamadı");
+
+            var newAccessToken = await GenerateAccessToken(user, cancellationToken);
+            var newRefreshToken = await GenerateRefreshToken(user.Id, deviceId, cancellationToken); // ✅ Cihaz ID ile yeni refresh token oluşturuluyor
+
             await _tokenCollection.UpdateOneAsync(
                 x => x.Id == existingToken.Id,
-                Builders<RefreshTokenModel>.Update.Set(x => x.IsRevoked, true),
+                Builders<RefreshTokenModel>.Update.Set(x => x.IsUsed, true),
                 cancellationToken: cancellationToken
             );
-            throw new Exception("Refresh token süresi dolmuş");
+
+            return new TokensModel
+            {
+                AccessToken = newAccessToken,
+                RefreshToken = newRefreshToken.RefreshToken
+            };
         }
-
-        // Token zaten kullanılmış mı veya iptal edilmiş mi?
-        if (existingToken.IsUsed || existingToken.IsRevoked)
-            throw new Exception("Bu refresh token zaten kullanılmış veya iptal edilmiş");
-
-        // Kullanıcıyı veritabanında ara
-        var user = await _userCollection.Find(x => x.Id == existingToken.UserId)
-            .FirstOrDefaultAsync(cancellationToken);
-
-        if (user == null)
-            throw new Exception("Kullanıcı bulunamadı");
-
-        // Yeni Access Token ve Refresh Token oluştur
-        var newAccessToken = await GenerateAccessToken(user, cancellationToken);
-        var newRefreshToken = await GenerateRefreshToken(user.Id, cancellationToken);
-
-
-        // Kullanılan refresh tokeni güncelle (Artık kullanıldı ve tekrar kullanılamaz)
-        await _tokenCollection.UpdateOneAsync(
-            x => x.Id == existingToken.Id,
-            Builders<RefreshTokenModel>.Update
-                .Set(x => x.IsUsed, true),
-            cancellationToken: cancellationToken
-        );
-
-        // Eski refresh tokenleri temizle (Son 3 token hariç)
-        await DeleteOldRefreshTokens(user.Id, cancellationToken);
-
-        return new TokensModel
+        catch (Exception e)
         {
-            AccessToken = newAccessToken,
-            RefreshToken = newRefreshToken.RefreshToken
-        };
-    }
-    catch (Exception e)
-    {
-        Console.WriteLine(e);
-        throw;
-    }
-}
-
-    
-    private async Task DeleteOldRefreshTokens(string userId, CancellationToken cancellationToken)
-    {
-        var tokens = await _tokenCollection
-            .Find(x => x.UserId == userId)
-            .SortByDescending(x => x.CreatedAt) // En yeni refresh token'lar başta olsun
-            .ToListAsync();
-        
-        if (tokens.Count > 3) // Eğer 3'ten fazla varsa, en eski olanları silelim
-        {
-            var tokensToDelete = tokens.Skip(3).Select(t => t.Id).ToList(); // 3. indexten sonrası silinecek
-            await _tokenCollection.DeleteManyAsync(x => tokensToDelete.Contains(x.Id), cancellationToken: cancellationToken);
+            Console.WriteLine(e);
+            throw;
         }
     }
-    
-    private async Task RevokeAllUserRefreshTokens(string userId, CancellationToken cancellationToken)
+    private async Task RevokeAllUserRefreshTokens(string userId, string deviceId, CancellationToken cancellationToken)
     {
         try
         {
@@ -163,7 +144,7 @@ public class TokenService(IMongoDbContext mongoDbContext, ICurrentUserService cu
                 .Set(x => x.IsRevoked, true);
 
             var result = await _tokenCollection.UpdateManyAsync(
-                x => x.UserId == userId,
+                x => (x.UserId == userId && x.DeviceId == deviceId),
                 update,
                 cancellationToken: cancellationToken
             );
@@ -174,5 +155,18 @@ public class TokenService(IMongoDbContext mongoDbContext, ICurrentUserService cu
             throw;
         }
     }
+    
+    private async Task DeleteOldDeviceTokens(string userId, string deviceId, CancellationToken cancellationToken)
+    {
+        var tokens = await _tokenCollection
+            .Find(x => x.UserId == userId && x.DeviceId == deviceId)
+            .SortByDescending(x => x.CreatedAt) // En yeni tokenler başta olacak
+            .ToListAsync(cancellationToken: cancellationToken);
 
+        if (tokens.Count > 3) // Eğer 3'ten fazla varsa, en eski olanları silelim
+        {
+            var tokensToDelete = tokens.Skip(3).Select(t => t.Id).ToList(); // 3. indexten sonrası silinecek
+            await _tokenCollection.DeleteManyAsync(x => tokensToDelete.Contains(x.Id), cancellationToken: cancellationToken);
+        }
+    }
 }

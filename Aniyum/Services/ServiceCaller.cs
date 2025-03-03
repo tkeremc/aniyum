@@ -37,33 +37,89 @@ public sealed class ServiceCaller
 
     private static void StartSettings(IServiceCollection services)
     {
+        // services.AddSwaggerGen(options =>
+        // {
+        //     options.SwaggerDoc("v1", new() { Title = "Aniyum API", Version = "v1" });
+        //     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+        //     {
+        //         Name = "Authorization",
+        //         Type = SecuritySchemeType.ApiKey,
+        //         Scheme = "Bearer",
+        //         BearerFormat = "JWT",
+        //         In = ParameterLocation.Header,
+        //         Description = "Tokenınızı girerken başına 'Bearer ' eklemeyi unutmayın. Örnek: 'Bearer eyJhbGc...' "
+        //     });
+        //     options.AddSecurityRequirement(new OpenApiSecurityRequirement
+        //     {
+        //         {
+        //             new OpenApiSecurityScheme
+        //             {
+        //                 Reference = new OpenApiReference 
+        //                 { 
+        //                     Type = ReferenceType.SecurityScheme, 
+        //                     Id = "Bearer" 
+        //                 }
+        //             },
+        //             Array.Empty<string>()
+        //         }
+        //     });
+        // });
         services.AddSwaggerGen(options =>
         {
-            options.SwaggerDoc("v1", new() { Title = "Aniyum API", Version = "v1" });
+            options.SwaggerDoc("v1", new OpenApiInfo 
+            { 
+                Title = "Aniyum API", 
+                Version = "v1" 
+            });
+
+            // ✅ Authorization (Bearer Token) için security scheme ekle
             options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
             {
                 Name = "Authorization",
-                Type = SecuritySchemeType.ApiKey,
+                Type = SecuritySchemeType.Http,
                 Scheme = "Bearer",
                 BearerFormat = "JWT",
                 In = ParameterLocation.Header,
-                Description = "Tokenınızı girerken başına 'Bearer ' eklemeyi unutmayın. Örnek: 'Bearer eyJhbGc...' "
+                Description = "JWT tokenınızı girerken başına 'Bearer ' eklemeyi unutmayın. Örnek: 'Bearer eyJhbGc...'"
             });
+
+            // ✅ Device ID için security scheme ekle
+            options.AddSecurityDefinition("DeviceId", new OpenApiSecurityScheme
+            {
+                Name = "device-id", // Header key adı
+                Type = SecuritySchemeType.ApiKey,
+                In = ParameterLocation.Header,
+                Description = "Cihazınıza özel kimlik (UUID). Örneğin: '123e4567-e89b-12d3-a456-426614174000'"
+            });
+
+            // ✅ Security Requirement ekleyerek Swagger'da zorunlu hale getir
             options.AddSecurityRequirement(new OpenApiSecurityRequirement
             {
                 {
                     new OpenApiSecurityScheme
                     {
-                        Reference = new OpenApiReference 
-                        { 
-                            Type = ReferenceType.SecurityScheme, 
-                            Id = "Bearer" 
+                        Reference = new OpenApiReference
+                        {
+                            Type = ReferenceType.SecurityScheme,
+                            Id = "Bearer"
                         }
                     },
-                    Array.Empty<string>()
+                    new List<string>()
+                },
+                {
+                    new OpenApiSecurityScheme
+                    {
+                        Reference = new OpenApiReference
+                        {
+                            Type = ReferenceType.SecurityScheme,
+                            Id = "DeviceId"
+                        }
+                    },
+                    new List<string>()
                 }
             });
         });
+
         
         services.AddAuthentication(options =>
         {

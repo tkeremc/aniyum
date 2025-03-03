@@ -44,7 +44,7 @@ public class UserService(IMongoDbContext mongoDbContext, ITokenService tokenServ
         }
     }
 
-    public async Task<TokensModel> Login(string email, string password, CancellationToken cancellationToken)
+    public async Task<TokensModel> Login(string email, string password, string deviceId, CancellationToken cancellationToken)
     {
         try
         {
@@ -53,7 +53,7 @@ public class UserService(IMongoDbContext mongoDbContext, ITokenService tokenServ
             if (!BCrypt.Net.BCrypt.Verify(password, user.HashedPassword)) throw new Exception("password is incorrect");
             
             var accessToken = await tokenService.GenerateAccessToken(user, cancellationToken);
-            var refreshToken = await tokenService.GenerateRefreshToken(user.Id, cancellationToken);
+            var refreshToken = await tokenService.GenerateRefreshToken(user.Id, deviceId, cancellationToken);
             
             var tokensModel = new TokensModel
             {
@@ -122,11 +122,11 @@ public class UserService(IMongoDbContext mongoDbContext, ITokenService tokenServ
         }
     }
 
-    public async Task<TokensModel> RefreshToken(string refreshToken, CancellationToken cancellationToken)
+    public async Task<TokensModel> RefreshToken(string refreshToken, string deviceId, CancellationToken cancellationToken)
     {
         try
         {
-            var tokens = await tokenService.RenewRefreshToken(refreshToken, cancellationToken);
+            var tokens = await tokenService.RenewRefreshToken(refreshToken, deviceId, cancellationToken);
             return new TokensModel { RefreshToken = tokens.RefreshToken, AccessToken = tokens.AccessToken };
         }
         catch (Exception e)
